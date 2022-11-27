@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  mongo:
+    image: "mongo:4.0.24-xenial"
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
+  
+  backend:
+    container_name: backend-srv
+    environment:
+      - MONGODB_URL=mongodb://mongo:27017
+      - API_KEY=BigProfilesAPI
+    image: backend
+    build: backend
+    depends_on:
+      - mongo 
+    ports:
+      - "8000:8000"
