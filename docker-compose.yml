@@ -12,7 +12,7 @@ services:
     container_name: backend-srv
     environment:
       - MONGODB_URL=mongodb://mongo:27017
-      - API_KEY=BigProfilesAPI
+      - API_KEY=BigProfiles-API
     image: backend
     build: backend
     depends_on:

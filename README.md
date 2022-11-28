@@ -1,9 +1,36 @@
-## Avvertenze
+![BigProfiles-Logo](https://bigprofiles.com/wp-content/uploads/2021/02/logo_multicolor.png)
+# BigProfiles API
 
-Usare le cartella "backend" come root del componente da sviluppare.
+API ad alte performance per l’ingestion di informazioni. Sui dati 
+salvati è possibile l’aggregazione temporale per minuto e sono 
+restituite alcune statistiche (come, ad esempio, tempo totale di risposta, numero di errori, numero 
+di richieste) aggregate sempre per minuto e la lista delle ultime 10 chiamate effettuate dell’ultima 
+aggregazione.
 
-L'applicato Backend dovrà girare sulla porta 8000 su localhost.
-Per lanciare lo stack è necessario usare docker-compose.
+## Prerequisiti
+- Docker installato ed in esecuzione (https://docs.docker.com/get-docker/)
 
-Per lanciare l'applicativo usare il comando 'bin/start.sh'.
-Per fermale lo stack applicativo usare il comando 'bin/stop.sh'.
+## Setup
+
+- Una volta clonata la cartella, entrarci dentro, assicurandosi di essere allo stesso livello del file **docker-compose.yml** e lanciare il comando
+
+    ```
+
+    docker-compose up
+
+    ```
+- Finita la creazione delle immagini docker e del container, assicurarsi che l'api sia in funzione esposta in locale sulla porta 8000: <br />
+**http://localhost:8000/docs** o **http://127.0.0.1:8000/docs**.<br />
+Si dovrebbe accedere alla seguente schermata:
+
+    ![APIDocs](/resources/APIDocs.png)
+
+## Documentazione
+### **Ingest**
+Vengono eseguiti tutti i calcoli necessari per dare una response nel tempo atteso, 10-50ms ± 10%, senza andare a salvare subito i dati su db. <br />
+Una volta deciso il tempo randomico di risposta e il rispettivo codice, 200 o 500, abbiamo tutti i dati per fare partire una post a database in **background** in modo di riuscire a controllare il tempo di risposta dell'endpoint (vedi funzione [write_enrich_input_to_db](/backend/src/routes/ingest.py#write_enrich_input_to_db)).<br />
+**Punto di attenzione**: è possibile fare ciò, solo perché il codice di risposta viene definito a priori, a prescindere da ciò che succede dal salvataggio a db.
+
+### **Retrieve**
+Per la fase di retrieve è stata utilizzata aggregation pipeline. La logica seguita è stata quella di fare un unico filtro sui dati, andando a matchare l'intervallo temporale dei query parameter, e poi fare le successive operazioni per ottenere i risultati aggregati e i log.
+La pipeline è stata quindi suddivisa in due sub-pipeline tramite **$facet**, una sub-pipeline per le aggregazioni, una per i log. Si potrebbe provare a parallelizzare le due sub-pipeline assegnando ciascuna ad un thread della Thread Pool, ma essendo la seconda limitata a 10 documenti ( tramite **$limit** ) la latenza e il consumo di banda sono già ridotti.
