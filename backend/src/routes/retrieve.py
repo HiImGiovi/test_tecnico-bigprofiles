@@ -99,37 +99,34 @@ def retrieve(
     # rounding date to next minute
     date_to_dt += datetime.timedelta(minutes=1)
     date_to_dt = date_to_dt.replace(second=0, microsecond=0)
-    outputs = list(enrich_inputs_collection.aggregate(
+    values = list(enrich_inputs_collection.aggregate(
         [
             {
                 "$match": {"creation_datetime": {"$gte": date_from_dt, "$lte": date_to_dt}},
             },
             {
-                "$facet": {
-                    "values": [
-                        {
-                            "$group": {
-                                "_id": {
-                                    "key": "$key",
-                                    "creation_year": {"$year": "$creation_datetime"},
-                                    "creation_month": {"$month": "$creation_datetime"},
-                                    "creation_day": {"$dayOfMonth": "$creation_datetime"},
-                                    "creation_hour": {"$hour": "$creation_datetime"},
-                                    "creation_min": {"$minute": "$creation_datetime"},
-                                },
-                                "total_requests": {"$sum": 1},
-                                "total_errors": {"$sum": {"$cond": [{"$eq": ['$response_code', 500]}, 1, 0]}},
-                                "total_response_time_ms": {"$sum": "$response_time"}
-                            }
-                        },
-                        {
-                            "$project": {
-                                "_id": 0,
-                                "key": "$_id.key",
-                                "total_response_time_ms": "$total_response_time_ms",
-                                "total_requests": "$total_requests",
-                                "total_errors": "$total_errors",
-                                "creation_datetime": {
+                "$group": {
+                    "_id": {
+                        "key": "$key",
+                        "creation_year": {"$year": "$creation_datetime"},
+                        "creation_month": {"$month": "$creation_datetime"},
+                        "creation_day": {"$dayOfMonth": "$creation_datetime"},
+                        "creation_hour": {"$hour": "$creation_datetime"},
+                        "creation_min": {"$minute": "$creation_datetime"},
+                    },
+                    "total_requests": {"$sum": 1},
+                    "total_errors": {"$sum": {"$cond": [{"$eq": ['$response_code', 500]}, 1, 0]}},
+                    "total_response_time_ms": {"$sum": "$response_time"}
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "key": "$_id.key",
+                    "total_response_time_ms": "$total_response_time_ms",
+                    "total_requests": "$total_requests",
+                    "total_errors": "$total_errors",
+                    "creation_datetime": {
                                     "$concat": [
                                         {"$toString": "$_id.creation_year"},
                                         "-",
@@ -182,38 +179,68 @@ def retrieve(
                                         },
                                         ":00",
                                     ]
-                                }
+                    }
 
-                            }
-                        },
-                        {
-                            "$sort": {"creation_datetime": 1, "key": 1}
-                        }],
-                    "logs": [
-                        {
-                            "$sort": {"creation_datetime": -1}
-                        },
-                        {
-                            "$limit": 10
-                        },
-                        {
-                            "$project": {
-                                "_id": 0,
-                                "key": "$key",
-                                "payload": "$payload",
-                                "response_time": "$response_time",
-                                "response_code": "$response_code",
-                                "creation_datetime": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S.%L", "date": "$creation_datetime"}},
-                            }
-                        }
-                    ]
                 }
-            }
+            },
+            {
+                "$sort": {"creation_datetime": 1, "key": 1}
+            },
+        ],
+        # "logs": [
+        #     {
+        #         "$sort": {"creation_datetime": -1}
+        #     },
+        #     {
+        #         "$limit": 10
+        #     },
+        #     {
+        #         "$project": {
+        #             "_id": 0,
+        #             "key": "$key",
+        #             "payload": "$payload",
+        #             "response_time": "$response_time",
+        #             "response_code": "$response_code",
+        #             "creation_datetime": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S.%L", "date": "$creation_datetime"}},
+        #         }
+        #     }
+        # ]
 
-        ]
+
     ))
+    if (len(values) > 0):
+
+        last_agg_datetime_from = datetime.datetime.fromisoformat(
+            values[len(values) - 1]["creation_datetime"])
+        last_agg_datetime_to = last_agg_datetime_from + \
+            datetime.timedelta(minutes=1)
+
+        logs = list(enrich_inputs_collection.aggregate(
+            [
+                {
+                    "$match": {"creation_datetime": {"$gte": last_agg_datetime_from, "$lt": last_agg_datetime_to}},
+                },
+                {
+                    "$sort": {"creation_datetime": -1}
+                },
+                {
+                    "$limit": 10
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "key": "$key",
+                        "payload": "$payload",
+                        "response_time": "$response_time",
+                        "response_code": "$response_code",
+                        "creation_datetime": {"$dateToString": {"format": "%Y-%m-%d %H:%M:%S.%L", "date": "$creation_datetime"}},
+                    }
+                }
+            ]))
+    else:
+        logs = []
 
     return {
-        "values": outputs[0]["values"],
-        "logs": outputs[0]["logs"]
+        "values": values,
+        "logs": logs
     }
