@@ -1,28 +1,33 @@
-from fastapi import FastAPI, HTTPException, Path, Depends, Security, Query, status, BackgroundTasks
-from fastapi.security.api_key import APIKeyHeader
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 
 from src.routes import ingest, retrieve
 
-import os
-from dotenv import load_dotenv
-
-
-load_dotenv()
-
-api_key_header_scheme = APIKeyHeader(name="x-api-key")
-
-def get_api_key(
-    api_key_header: str = Security(api_key_header_scheme),
-):
-    if api_key_header == os.getenv("API_KEY"):
-        return api_key_header
-    else:
-        raise HTTPException(status_code=403)
-
 app = FastAPI()
-@app.get("/" )
-def home():
-    return{"ciao":"bella"}
+
 app.include_router(ingest.router, prefix="/api/v1")
 app.include_router(retrieve.router, prefix="/api/v1")
 
+
+def custom_openapi():
+    '''
+    Summary
+    ------
+    Personalizzazione dello schema openapi.
+    '''
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="BigProfiles API Frontend Test",
+        version="1.0.0",
+        description="# Introduction\nQueste API sono state sviluppate da BigProfiles per il test tecnico FrontEnd. E' vietato il riutilizzo o la riproduzione di esse\nPer quanto riguarda l'autenticazione usare il parametro `x-api-key` all'interno dell'header ed impostare come valore `BigProfiles-API`",
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-logo"] = {
+        "url": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCEtLSBHZW5lcmF0b3I6IEdyYXZpdC5pbyAtLT48c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHN0eWxlPSJpc29sYXRpb246aXNvbGF0ZSIgdmlld0JveD0iMCAwIDk0LjM3NSA5MS4xNjIiIHdpZHRoPSI5NC4zNzVwdCIgaGVpZ2h0PSI5MS4xNjJwdCI+PGRlZnM+PGNsaXBQYXRoIGlkPSJfY2xpcFBhdGhfbE1BbG5mWkdYV2dJek5Jek1TZFdhU2k0cG9NOHozWXkiPjxyZWN0IHdpZHRoPSI5NC4zNzUiIGhlaWdodD0iOTEuMTYyIi8+PC9jbGlwUGF0aD48L2RlZnM+PGcgY2xpcC1wYXRoPSJ1cmwoI19jbGlwUGF0aF9sTUFsbmZaR1hXZ0l6Tkl6TVNkV2FTaTRwb004ejNZeSkiPjxnPjxnPjxwYXRoIGQ9IiBNIDQ5LjIwNiA4Ny4wNSBDIDQ4LjIyNCA3Ni41MiA0Ny42NjcgNjUuOTc5IDQ4LjE0OCA1NS40MTIgQyA0OC4zNTYgNTAuODQzIDQ4LjY5IDQ2LjI3NSA1MC4wMjUgNDEuODYzIEMgNTIuODgyIDMyLjQyNSA1OC44OTIgMjYuMDY1IDY4LjQ4MSAyMy40MDYgQyA3OC4zMjQgMjAuNjc2IDg4LjQzOSAyNy4zNTcgODkuOTI0IDM3LjQzNiBDIDkxLjI2OCA0Ni41NTcgODUuNTE5IDU0LjgzNiA3Ni40MzIgNTYuOTE3IEMgNzMuMjQ0IDU3LjY0NyA3MC4wNTMgNTguMzc3IDY2LjkwOSA1OS4yNjYgQyA2NC42NTEgNTkuOTA1IDYyLjYgNjEuMDY0IDYwLjYzNCA2Mi4zNjQgQyA1Ny45NCA2NC4xNDYgNTUuOTU0IDY2LjQ3OSA1NC42NDEgNjkuNDQzIEMgNTIuNTQyIDc0LjE4MiA1MS4xMzMgNzkuMTM1IDQ5Ljg5IDg0LjE0NSBDIDQ5LjY1IDg1LjExMSA0OS40MzMgODYuMDgxIDQ5LjIwNiA4Ny4wNSBaICIgZmlsbC1ydWxlPSJldmVub2RkIiBmaWxsPSJyZ2IoMCw5NywxNjUpIi8+PHBhdGggZD0iIE0gNDQuNzg4IDY2LjU5MiBDIDQ0LjA4OSA2NS42NDQgNDMuNTA4IDY0Ljc0OSA0Mi44MjEgNjMuOTQ2IEMgNDEuNjI1IDYyLjU0NyA0MC40MzEgNjEuMTM1IDM5LjExNiA1OS44NTIgQyAzNi4wNDkgNTYuODYxIDMyLjI0IDU1LjQyMSAyOC4wNDMgNTUuMTc0IEMgMjUuMzU0IDU1LjAxNiAyMi42MjggNTUuMTM0IDE5LjkzOSA1NS4zNzEgQyAxMi44ODUgNTUuOTkzIDYuNTg5IDUxLjc3MiA0Ljc0OSA0NS4wNDIgQyAyLjM1MSAzNi4yNzMgOS4wMjQgMjcuNDE4IDE4LjExNSAyNy40MjYgQyAyNi41OTMgMjcuNDM0IDMyLjgxOCAzMS40MTcgMzcuMDQ5IDM4LjYyNiBDIDM5LjU0MyA0Mi44NzYgNDAuOTkgNDcuNTQ5IDQyLjIyNCA1Mi4yODggQyA0My40MTcgNTYuODcxIDQ0LjIzNyA2MS41MjQgNDQuNzg2IDY2LjIyNiBDIDQ0Ljc5NiA2Ni4zMDYgNDQuNzg4IDY2LjM4OCA0NC43ODggNjYuNTkyIFogIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9InJnYigwLDk3LDE2NSkiLz48cGF0aCBkPSIgTSA0NS44NjMgNTEuMjMgQyA0NS4zODYgNDkuNjc2IDQ0Ljk0NiA0OC4xMSA0NC40MjcgNDYuNTcgQyA0My4wNzMgNDIuNTQ4IDQxLjQyOSAzOC42NTMgMzguOTI1IDM1LjE5NSBDIDM2LjA5MiAzMS4yODQgMzIuMjk1IDI4LjQ4OSAyOC4xMzYgMjYuMTM3IEMgMjUuMDYyIDI0LjQgMjMuMDE4IDIxLjgzMSAyMi4zMTQgMTguMzU4IEMgMjEuMzY4IDEzLjY4NiAyMi43NDggOS43MDUgMjYuNDc1IDYuNzQyIEMgMzAuMjU2IDMuNzM3IDM0LjUzNCAzLjM0MSAzOC44NjIgNS4zODEgQyA0My41MSA3LjU3MiA0Ni4wODggMTEuMjYyIDQ2LjA2NSAxNi41NTUgQyA0Ni4wMTUgMjcuOTEzIDQ1Ljk3NCAzOS4yNyA0NS45MzEgNTAuNjI4IEMgNDUuOTI5IDUwLjgyNyA0NS45MzEgNTEuMDI2IDQ1LjkzMSA1MS4yMjUgQyA0NS45MDggNTEuMjI3IDQ1Ljg4NSA1MS4yMjggNDUuODYzIDUxLjIzIEwgNDUuODYzIDUxLjIzIFogIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9InJnYigwLDk3LDE2NSkiLz48cGF0aCBkPSIgTSA1Ny40MSA0LjE5MiBDIDYyLjAwNiA0LjE5NyA2NS43MzQgNy45MzQgNjUuNzMgMTIuNTM0IEMgNjUuNzI2IDE3LjEzIDYxLjk5IDIwLjg1NyA1Ny4zODkgMjAuODU0IEMgNTIuNzk0IDIwLjg1MSA0OS4wNjQgMTcuMTEyIDQ5LjA2OSAxMi41MTMgQyA0OS4wNzMgNy45MTYgNTIuODExIDQuMTg4IDU3LjQxIDQuMTkyIFogIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGZpbGw9InJnYigwLDk3LDE2NSkiLz48L2c+PC9nPjwvZz48L3N2Zz4="
+    }
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi_schema = custom_openapi()
