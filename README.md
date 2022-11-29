@@ -33,4 +33,4 @@ Una volta deciso il tempo randomico di risposta e il rispettivo codice, 200 o 50
 
 ### **Retrieve**
 Per la fase di retrieve è stata utilizzata aggregation pipeline. La logica seguita è stata quella di fare un unico filtro sui dati, andando a matchare l'intervallo temporale dei query parameter, e poi fare le successive operazioni per ottenere i risultati aggregati e i log.
-La pipeline è stata quindi suddivisa in due sub-pipeline tramite **$facet**, una sub-pipeline per le aggregazioni, una per i log. Si potrebbe provare a parallelizzare le due sub-pipeline assegnando ciascuna ad un thread della Thread Pool, ma essendo la seconda limitata a 10 documenti ( tramite **$limit** ) la latenza e il consumo di banda sono già ridotti.
+E' stata eseguita prima una pipeline per ottenere i risultati aggregati, ed è poi stato utilizzato l'ultimo risultato aggregato per il recupero degli ultimi dieci log in quella finestra temporale.
